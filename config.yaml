@@ -1,0 +1,20 @@
+# read by sentinel.py - fill in token/chat_id before running
+serial:
+  port: COM3
+  baud: 250000
+
+telegram:
+  token: "PASTE_BOT_TOKEN_HERE"
+  chat_id: "PASTE_CHAT_ID_HERE"
+  cooldown_seconds: 5          # minimum gap between telegram messages, per sound type
+
+camera:
+  phone_url: "http://192.168.43.1:8080"   # IP Webcam app on your phone, same wifi as this laptop
+  start_path: "/startvideo?force=1"
+  stop_path: "/stopvideo?force=1"
+  list_path: "/videos/"
+  clip_seconds: 15             # how long each recorded clip is
+  cooldown_seconds: 20         # minimum gap between clip recordings (one shared camera)
+
+z_threshold: 4.0               # std-devs above the adaptive baseline that counts as an anomaly
+retention_days: 180             # clips and event log rows older than this get auto-deleted (6 months)
