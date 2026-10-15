@@ -52,7 +52,7 @@ camera:
   stream_path: "/video"        # IP Webcam's live mjpeg stream - clips are recorded from this on the laptop
   username: ""                 # only if you turned on a login in IP Webcam's settings
   password: ""
-  clip_seconds: 15             # how long each clip runs after the sound starts
+  clip_seconds: 7            # how long each clip runs after the sound starts
   pre_seconds: 3               # how much video from BEFORE the sound is included
   fps: 10                      # frames per second saved to the clip
   cooldown_seconds: 20         # minimum gap between clip recordings (one shared camera)
