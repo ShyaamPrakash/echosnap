@@ -2,42 +2,15 @@
 serial:
   port: COM7              # from the Arduino IDE's Tools > Port menu (e.g. /dev/ttyACM0 on Linux)
   baud: 250000                 # must match the sketch
-  hardware_buzzer: true        # sends 'A' over serial to pulse Arduino Pin 8 during alarms
 
 mode:
-  current: "security"          # "security", "machine", or "general" (can also be switched live in dashboard)
+  current: "security"          # "security", "machine", or "general" / Combined
   security:
-    alert_types: ["impact", "voice", "tonal_alarm", "glass_shatter"]
-    ignore_steady_hum: true
-    siren_before_voice: true
     sensitivity_multiplier: 1.0
   machine:
-    alert_types: ["bearing_fault", "machine_hum", "impact", "tonal_alarm"]
     drift_warn_db: 5.0         # warn when continuous machine noise rises by this many dB
     harmonic_warn_tonal: 0.72  # warn when motor whine becomes unusually narrow/tonal
-    siren_before_voice: false
     sensitivity_multiplier: 0.9
-
-voice_alarm:
-  enabled: true                # speaks live voice alerts out loud on the laptop
-  rate: 175                    # speech speed (words per minute)
-  volume: 1.0                  # 0.0 to 1.0
-  cooldown_seconds: 6          # minimum gap between spoken voice alarms
-  custom_messages:
-    security:
-      impact: "Security Alert! Physical impact or forced entry detected."
-      voice: "Security Alert! Human voice detected in restricted area."
-      tonal_alarm: "Emergency! High priority tonal alarm or smoke detector triggered."
-      glass_shatter: "Critical Security Breach! Glass shatter or sharp transient detected."
-      default: "Security Alert! Unidentified acoustic anomaly detected."
-    machine:
-      bearing_fault: "Machine Warning! High frequency bearing friction or metallic wear detected."
-      machine_hum: "Machine Alert! Abnormal motor load or harmonic hum variation detected."
-      impact: "Machine Alert! Mechanical knock or sudden impact inside equipment."
-      tonal_alarm: "Machine Warning! Equipment fault beep or tonal warning active."
-      default: "Machine Diagnostic Alert! Unusual acoustic signature detected."
-    general:
-      default: "Acoustic Sentinel Alert! Detected {label}, {rise_db} decibels above normal."
 
 telegram:
   token: "8907308391:AAGbCyMDG6BKUMlWsfumBuTsvVMjPVBrH8I"
@@ -58,8 +31,8 @@ camera:
   cooldown_seconds: 20         # minimum gap between clip recordings (one shared camera)
 
 detection:
-  z_threshold: 3.0             # how many 'normal wobbles' above baseline counts as abnormal (lower = more sensitive)
-  min_rise_db: 4.0             # smallest rise above normal (dB) that can trigger an alert
+  z_threshold: 3.5             # how many 'normal wobbles' above baseline counts as abnormal (lower = more sensitive)
+  min_rise_db: 6.0             # smallest rise above normal (dB) that can trigger an alert
   min_rms: 0.15                # ignore only near-silence; keep this LOW or quiet mics never trigger
   warmup_seconds: 10           # 10s outlier-trimmed learning window at startup
   adapt_seconds: 30            # Smoothly tracks slow background changes

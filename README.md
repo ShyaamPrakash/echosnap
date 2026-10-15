@@ -1,4 +1,4 @@
-# Acoustic Sentinel
+# EchoSnap
 
 A sound-based anomaly detector built around an Arduino Uno and a MAX4466 electret mic.
 

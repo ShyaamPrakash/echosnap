@@ -4,4 +4,3 @@ PyYAML>=6.0.1
 streamlit>=1.35.0
 pandas>=2.0.0
 imageio-ffmpeg>=0.5.1
-pyttsx3>=2.90

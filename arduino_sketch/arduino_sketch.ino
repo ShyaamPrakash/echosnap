@@ -1,7 +1,4 @@
-// acoustic sentinel firmware v2 - max4466 mic on a0 -> 250000 baud
-// supports bidirectional serial commands for hardware alarm/buzzer on pin 8:
-//   'A' -> trigger alarm pattern on pin 8 & LED 13
-//   'S' -> silence alarm pin 8
+// EchoSnap firmware v2 - MAX4466 mic on A0 -> 250000 baud
 //
 // data line format: ms,rms,zcr,peak,b1..b8,domhz,tonal
 
@@ -75,7 +72,6 @@ const float    FS = 8000.0f;        // sample rate, set by timer1 below
 const float    BIN_HZ = FS / N;     // 62.5 Hz per fft bin
 const int16_t  DEADBAND = 3;        // ignore tiny wiggles for zcr
 const uint8_t  LED = 13;            // on while a window is processing
-const uint8_t  ALARM_PIN = 8;       // optional active buzzer / status LED for hardware alarms
 
 // fft bins summed into each band (bin k is centred on k * 62.5 Hz)
 //   60-125, 190-250, 310-440, 500-690, 750-1060, 1120-1620, 1690-2500, 2560-3940 Hz
@@ -97,7 +93,7 @@ uint32_t pw[M];                     // per-bin power, before scaling
 
 uint32_t lastReport = 0;
 uint32_t busyUs = 0;                // time spent in process() since the last report
-uint32_t alarmUntilMs = 0;          // non-blocking hardware buzzer timer
+uint32_t ledUntil = 0;
 
 ISR(ADC_vect) {
   TIFR1 = _BV(OCF1B);   // clear the timer flag so the next compare match can trigger again
@@ -118,16 +114,13 @@ ISR(ADC_vect) {
 void setup() {
   Serial.begin(250000);
   pinMode(LED, OUTPUT);
-  pinMode(ALARM_PIN, OUTPUT);
-  digitalWrite(ALARM_PIN, LOW);
-
   for (uint8_t k = 0; k <= N * 3 / 4; k++) {
     sinQ[k] = (int16_t)lround(32767.0 * sin(2.0 * PI * k / N));
   }
   for (uint8_t i = 0; i <= N / 2; i++) {
     hann[i] = (int16_t)lround(32767.0 * 0.5 * (1.0 - cos(2.0 * PI * i / N)));
   }
-  Serial.println(F("# acoustic sentinel ready"));
+  Serial.println(F("# EchoSnap ready"));
 
   // timer1: ctc mode, 16 MHz / 8 / 250 = 8000 compare matches per second
   cli();
@@ -300,24 +293,11 @@ void process(uint8_t b) {
   Serial.write((const uint8_t *)line, (size_t)(p - line));
 }
 
-void checkSerialCommands(uint32_t now) {
-  while (Serial.available() > 0) {
-    char c = (char)Serial.read();
-    if (c == 'A') {
-      alarmUntilMs = now + 2500;
-    } else if (c == 'S') {
-      alarmUntilMs = 0;
-      digitalWrite(ALARM_PIN, LOW);
-    }
-  }
-  if (alarmUntilMs > now) {
-    digitalWrite(ALARM_PIN, ((now >> 7) & 1) ? HIGH : LOW);
-  } else {
-    digitalWrite(ALARM_PIN, LOW);
-  }
-}
-
 void loop() {
+  while (Serial.available()) {
+    if (Serial.read() == 'L') ledUntil = millis() + 500;
+  }
+
   int8_t b = -1;
   noInterrupts();
   if (bufState[0] == READY) b = 0;
@@ -329,7 +309,7 @@ void loop() {
     uint32_t t0 = micros();
     digitalWrite(LED, HIGH);
     process((uint8_t)b);
-    digitalWrite(LED, LOW);
+    digitalWrite(LED, millis() < ledUntil ? HIGH : LOW);
     busyUs += micros() - t0;
 
     noInterrupts();
@@ -337,9 +317,9 @@ void loop() {
     interrupts();
   }
 
-  uint32_t now = millis();
-  checkSerialCommands(now);
+  digitalWrite(LED, millis() < ledUntil ? HIGH : LOW);
 
+  uint32_t now = millis();
   if (now - lastReport >= 5000) {
     noInterrupts(); uint16_t ov = overruns; interrupts();
     Serial.print(F("# cpu="));
