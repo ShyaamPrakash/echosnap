@@ -1,20 +1,72 @@
 # read by sentinel.py - fill in token/chat_id before running
 serial:
-  port: COM3
-  baud: 250000
+  port: COM7              # from the Arduino IDE's Tools > Port menu (e.g. /dev/ttyACM0 on Linux)
+  baud: 250000                 # must match the sketch
+  hardware_buzzer: true        # sends 'A' over serial to pulse Arduino Pin 8 during alarms
+
+mode:
+  current: "security"          # "security", "machine", or "general" (can also be switched live in dashboard)
+  security:
+    alert_types: ["impact", "voice", "tonal_alarm", "glass_shatter"]
+    ignore_steady_hum: true
+    siren_before_voice: true
+    sensitivity_multiplier: 1.0
+  machine:
+    alert_types: ["bearing_fault", "machine_hum", "impact", "tonal_alarm"]
+    drift_warn_db: 5.0         # warn when continuous machine noise rises by this many dB
+    harmonic_warn_tonal: 0.72  # warn when motor whine becomes unusually narrow/tonal
+    siren_before_voice: false
+    sensitivity_multiplier: 0.9
+
+voice_alarm:
+  enabled: true                # speaks live voice alerts out loud on the laptop
+  rate: 175                    # speech speed (words per minute)
+  volume: 1.0                  # 0.0 to 1.0
+  cooldown_seconds: 6          # minimum gap between spoken voice alarms
+  custom_messages:
+    security:
+      impact: "Security Alert! Physical impact or forced entry detected."
+      voice: "Security Alert! Human voice detected in restricted area."
+      tonal_alarm: "Emergency! High priority tonal alarm or smoke detector triggered."
+      glass_shatter: "Critical Security Breach! Glass shatter or sharp transient detected."
+      default: "Security Alert! Unidentified acoustic anomaly detected."
+    machine:
+      bearing_fault: "Machine Warning! High frequency bearing friction or metallic wear detected."
+      machine_hum: "Machine Alert! Abnormal motor load or harmonic hum variation detected."
+      impact: "Machine Alert! Mechanical knock or sudden impact inside equipment."
+      tonal_alarm: "Machine Warning! Equipment fault beep or tonal warning active."
+      default: "Machine Diagnostic Alert! Unusual acoustic signature detected."
+    general:
+      default: "Acoustic Sentinel Alert! Detected {label}, {rise_db} decibels above normal."
 
 telegram:
-  token: "PASTE_BOT_TOKEN_HERE"
-  chat_id: "PASTE_CHAT_ID_HERE"
+  token: "8907308391:AAGbCyMDG6BKUMlWsfumBuTsvVMjPVBrH8I"
+  chat_id: "5129887413"
   cooldown_seconds: 5          # minimum gap between telegram messages, per sound type
+  send_clips: true             # also send each recorded clip to the chat once it's saved
 
 camera:
-  phone_url: "http://192.168.43.1:8080"   # IP Webcam app on your phone, same wifi as this laptop
-  start_path: "/startvideo?force=1"
-  stop_path: "/stopvideo?force=1"
-  list_path: "/videos/"
-  clip_seconds: 15             # how long each recorded clip is
+  enabled: true                # false = no clips at all
+  phone_url: "http://10.174.111.110:8080/"   
+                               # IP Webcam app on your phone, same wifi as this laptop
+  stream_path: "/video"        # IP Webcam's live mjpeg stream - clips are recorded from this on the laptop
+  username: ""                 # only if you turned on a login in IP Webcam's settings
+  password: ""
+  clip_seconds: 15             # how long each clip runs after the sound starts
+  pre_seconds: 3               # how much video from BEFORE the sound is included
+  fps: 10                      # frames per second saved to the clip
   cooldown_seconds: 20         # minimum gap between clip recordings (one shared camera)
 
-z_threshold: 4.0               # std-devs above the adaptive baseline that counts as an anomaly
-retention_days: 180             # clips and event log rows older than this get auto-deleted (6 months)
+detection:
+  z_threshold: 3.0             # how many 'normal wobbles' above baseline counts as abnormal (lower = more sensitive)
+  min_rise_db: 4.0             # smallest rise above normal (dB) that can trigger an alert
+  min_rms: 0.15                # ignore only near-silence; keep this LOW or quiet mics never trigger
+  warmup_seconds: 10           # 10s outlier-trimmed learning window at startup
+  adapt_seconds: 30            # Smoothly tracks slow background changes
+  end_hold_seconds: 0.5        # Quiet gap that ends a sound and fires the alert
+  max_event_seconds: 2.0       # Long sounds get classified and alerted after 2.0s
+  accept_as_normal_seconds: 30
+  novelty: 0.42
+  learn_rate: 0.06     # how far a type's prototype moves towards each clear match
+
+retention_days: 180            # clips and event log rows older than this get auto-deleted (6 months)
