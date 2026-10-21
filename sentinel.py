@@ -114,7 +114,10 @@ def parse_line(line):
         vals=[float(p) for p in parts]
     except ValueError:
         return None
-    return Frame(vals[0], vals[1], vals[2], vals[3], vals[4:4+NB], vals[4+NB], vals[5+NB])
+    # The firmware serializes RMS, zero-crossing rate, and tonality as
+    # fixed-point integers (x10, x1000, and x100 respectively).
+    return Frame(vals[0], vals[1] / 10.0, vals[2] / 1000.0, vals[3],
+                 vals[4:4+NB], vals[4+NB], vals[5+NB] / 100.0)
 
 
 
@@ -244,7 +247,7 @@ def event_features(ev, baseline):
 
     centroid=sum(s*hz for s, hz in zip(spec, BAND_HZ))/tot
     shares=[s/tot for s in spec if s>0]
-    spread=sum(p*math.log(p) for p in shares)/math.log(NB)
+    spread=-sum(p*math.log(p) for p in shares)/math.log(NB)
 
     wsum=sum(weights) or 1.0
     tonal=sum(w*f.tonal for w, f in zip(weights, frames))/wsum
@@ -292,6 +295,12 @@ def event_features(ev, baseline):
         min(max(low_ratio, 0.0), 1.0),
         min(max(high_ratio, 0.0), 1.0),
     ]
+    raw["impact_score"]=round(
+        0.30*vec[7] + 0.25*vec[5] + 0.20*(1.0-vec[4])
+        + 0.15*(1.0-vec[3]) + 0.10*(1.0-vec[1]), 2)
+    raw["voice_score"]=round(
+        0.30*vec[4] + 0.25*vec[3] + 0.20*vec[1]
+        + 0.15*(1.0-vec[7]) + 0.10*(1.0-vec[2]), 2)
     return vec, raw
 
 
@@ -320,7 +329,7 @@ class ShapeClassifier:
         try:
             with open(self.path, encoding="utf-8") as f:
                 data=json.load(f)
-            if data.get("version")==3:
+            if data.get("version")==4:
                 self.protos={k: [float(x) for x in data["protos"][k]]
                              for k in self.SEEDS if k in data["protos"]}
                 if not self.protos:
@@ -328,7 +337,7 @@ class ShapeClassifier:
                 self.counts={k: int(data.get("counts", {}).get(k, 0)) for k in self.protos}
                 self.next_id=1
         except (OSError, ValueError, KeyError, TypeError):
-            print("[classifier] prototypes.json unreadable or older version, upgrading to v3 seeds")
+            print("[classifier] prototypes.json unreadable or older version, upgrading to v4 seeds")
 
     def _save(self):
         if not self.path:
@@ -336,7 +345,7 @@ class ShapeClassifier:
         tmp=self.path+".tmp"
         try:
             with open(tmp, "w", encoding="utf-8") as f:
-                json.dump({"version": 3, "next_id": self.next_id, "counts": self.counts,
+                json.dump({"version": 4, "next_id": self.next_id, "counts": self.counts,
                            "protos": {k: [round(x, 4) for x in v] for k, v in self.protos.items()}}, f, indent=1)
             os.replace(tmp, self.path)
         except OSError:
@@ -483,6 +492,19 @@ class Detector:
         vec, raw=event_features(ev, self.baseline)
         self.last_vec=vec
         label, conf=self.classifier.classify(vec)
+        # A transient impact and a sustained voice can have similar broad
+        # spectra. Use their time-domain shape as a tie-breaker instead of
+        # allowing a learned prototype to collapse both into one label.
+        impact_score=raw["impact_score"]
+        voice_score=raw["voice_score"]
+        if (impact_score>=0.68 and raw["duration_s"]<=0.55
+                and vec[7]>=0.45 and vec[5]>=0.20):
+            label="impact"
+            conf=max(conf, round(impact_score, 2))
+        elif (voice_score>=0.64 and raw["duration_s"]>=0.25
+              and vec[4]>=0.45 and impact_score<0.68):
+            label="voice"
+            conf=max(conf, round(voice_score, 2))
         strength_conf=min(0.99, ev.max_z/max(2.0*self.z_on, 1.0))
         conf=max(conf, round(strength_conf, 2))
         ev.result={"type": label, "confidence": conf, "score": ev.max_z, "features": raw,
