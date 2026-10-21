@@ -23,6 +23,7 @@ def send_command(payload):
     os.replace(tmp, COMMAND_PATH)
 
 def display_label(mode, label):
+    label = label.strip().lower().replace(" ", "_")
     if mode=="security":
         if label=="voice":
             return "voice"
