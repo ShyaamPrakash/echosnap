@@ -504,8 +504,6 @@ class Detector:
               and vec[4]>=0.45 and impact_score<0.68):
             label="voice"
             conf=max(conf, round(voice_score, 2))
-        else:
-            label="others"
         strength_conf=min(0.99, ev.max_z/max(2.0*self.z_on, 1.0))
         conf=max(conf, round(strength_conf, 2))
         ev.result={"type": label, "confidence": conf, "score": ev.max_z, "features": raw,
