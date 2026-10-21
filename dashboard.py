@@ -24,22 +24,7 @@ def send_command(payload):
 
 def display_label(mode, label):
     label = label.strip().lower().replace(" ", "_")
-    if mode=="security":
-        if label=="voice":
-            return "voice"
-        if label=="tonal_alarm":
-            return "alarm"
-        if label=="impact":
-            return "impact"
-        return "others"
-    if mode=="machine":
-        return "alarm" if label=="tonal_alarm" else "abnormal sound"
-    return {
-        "voice": "voice",
-        "tonal_alarm": "alarm",
-        "impact": "impact",
-        "abnormal_sound": "abnormal sound",
-    }.get(label, "others")
+    return label if label in ("impact", "voice", "others") else "others"
 
 
 st.set_page_config(page_title="EchoSnap", page_icon="🔊", layout="wide")
@@ -87,7 +72,7 @@ with st.sidebar:
     st.caption("If the last sound was misclassified, teach the prototype classifier the exact label:")
     teach_label = st.selectbox(
         "Correct Sound Label",
-        ["impact", "voice", "tonal_alarm", "abnormal_sound"],
+        ["impact", "voice", "others"],
     )
     if st.button("Teach Last Event Label", use_container_width=True):
         send_command({"action": "teach", "label": teach_label})

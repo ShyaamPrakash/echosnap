@@ -309,9 +309,8 @@ class ShapeClassifier:
 
     SEEDS={
         "impact":        [0.62, 0.65, 0.35, 0.35, 0.30, 0.55, 0.38, 0.72, 0.35, 0.40],
-        "tonal_alarm":   [0.84, 0.16, 0.94, 0.85, 0.80, 0.02, 0.55, 0.20, 0.05, 0.85],
         "voice":         [0.58, 0.76, 0.52, 0.74, 0.72, 0.06, 0.30, 0.38, 0.28, 0.32],
-        "abnormal_sound": [0.57, 0.57, 0.61, 0.87, 0.90, 0.04, 0.44, 0.30, 0.43, 0.45],
+        "others":        [0.57, 0.57, 0.61, 0.87, 0.90, 0.04, 0.44, 0.30, 0.43, 0.45],
     }
     WEIGHTS=[1.2, 0.8, 1.5, 2.0, 1.8, 2.0, 1.4, 1.5, 1.3, 1.3]
     def __init__(self, learn_rate=0.06, novelty=0.42, path=None):
@@ -329,7 +328,7 @@ class ShapeClassifier:
         try:
             with open(self.path, encoding="utf-8") as f:
                 data=json.load(f)
-            if data.get("version")==4:
+            if data.get("version")==5:
                 self.protos={k: [float(x) for x in data["protos"][k]]
                              for k in self.SEEDS if k in data["protos"]}
                 if not self.protos:
@@ -337,7 +336,7 @@ class ShapeClassifier:
                 self.counts={k: int(data.get("counts", {}).get(k, 0)) for k in self.protos}
                 self.next_id=1
         except (OSError, ValueError, KeyError, TypeError):
-            print("[classifier] prototypes.json unreadable or older version, upgrading to v4 seeds")
+            print("[classifier] prototypes.json unreadable or older version, upgrading to v5 seeds")
 
     def _save(self):
         if not self.path:
@@ -345,7 +344,7 @@ class ShapeClassifier:
         tmp=self.path+".tmp"
         try:
             with open(tmp, "w", encoding="utf-8") as f:
-                json.dump({"version": 4, "next_id": self.next_id, "counts": self.counts,
+                json.dump({"version": 5, "next_id": self.next_id, "counts": self.counts,
                            "protos": {k: [round(x, 4) for x in v] for k, v in self.protos.items()}}, f, indent=1)
             os.replace(tmp, self.path)
         except OSError:
@@ -505,6 +504,8 @@ class Detector:
               and vec[4]>=0.45 and impact_score<0.68):
             label="voice"
             conf=max(conf, round(voice_score, 2))
+        else:
+            label="others"
         strength_conf=min(0.99, ev.max_z/max(2.0*self.z_on, 1.0))
         conf=max(conf, round(strength_conf, 2))
         ev.result={"type": label, "confidence": conf, "score": ev.max_z, "features": raw,
@@ -1016,22 +1017,7 @@ class Sentinel:
             self.telegram.message(text)
 
     def _display_label(self, label):
-        if self.mode=="security":
-            if label=="voice":
-                return "voice"
-            if label=="tonal_alarm":
-                return "alarm"
-            if label=="impact":
-                return "impact"
-            return "others"
-        if self.mode=="machine":
-            return "alarm" if label=="tonal_alarm" else "abnormal sound"
-        return {
-            "voice": "voice",
-            "tonal_alarm": "alarm",
-            "impact": "impact",
-            "abnormal_sound": "abnormal sound",
-        }.get(label, "others")
+        return label if label in ("impact", "voice", "others") else "others"
 
     def _history(self, f):
         d=self.detector

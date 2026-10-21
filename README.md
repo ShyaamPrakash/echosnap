@@ -38,7 +38,7 @@ One row per processed window. Anything else the firmware wants to report — lik
 
 ## Known limitations
 
-- The classifier has no memory of true sound classes beyond its four seed prototypes — it's reacting to "different from normal" and guessing a label from signal shape, so it's noticeably rougher than a properly trained model. That's the trade-off for needing zero training data.
+- The classifier has no memory of true sound classes beyond its three seed prototypes (`impact`, `voice`, and `others`) — it's reacting to "different from normal" and guessing a label from signal shape, so it's noticeably rougher than a properly trained model. That's the trade-off for needing zero training data.
 - Learned prototypes live in memory only. Restarting `sentinel.py` resets them back to the seeds.
 - Camera integration assumes a phone running the IP Webcam Android app on the same wifi network. There's no local-webcam fallback in this version.
 
